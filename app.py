@@ -1,148 +1,102 @@
-
-
 import streamlit as st
-import random
 import pandas as pd
-from datetime import datetime
+import os
+from io import BytesIO
 
-# Custom CSS for styling
-st.markdown(
-    """
-    <style>
-    .main {
-        background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
-        padding: 20px;
-        border-radius: 10px;
-    }
-    .sidebar .sidebar-content {
-        background: linear-gradient(135deg, #ffffff, #f0f0f0);
-        padding: 20px;
-        border-radius: 10px;
-    }
-    h1, h2, h3 {
-        color: #2c3e50;
-        font-family: 'Arial', sans-serif;
-    }
-    .stButton button {
-        background: linear-gradient(135deg, #6a11cb, #2575fc);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 10px 20px;
-        font-size: 16px;
-        font-weight: bold;
-    }
-    .stButton button:hover {
-        background: linear-gradient(135deg, #2575fc, #6a11cb);
-    }
-    .stProgress > div > div > div {
-        background: linear-gradient(135deg, #6a11cb, #2575fc);
-    }
-    .stMarkdown {
-        font-size: 16px;
-        color: #2c3e50;
-    }
-    .card {
-        background: white;
-        padding: 20px;
-        border-radius: 10px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        margin-bottom: 20px;
-    }
-    .profile-card {
-        background: linear-gradient(135deg, #6a11cb, #2575fc);
-        color: white;
-        padding: 20px;
-        border-radius: 10px;
-        text-align: center;
-    }
-    .badge-card {
-        background: white;
-        padding: 20px;
-        border-radius: 10px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        margin-bottom: 20px;
-    }
-    .badge {
-        display: inline-block;
-        background: #6a11cb;
-        color: white;
-        padding: 5px 10px;
-        border-radius: 20px;
-        margin: 5px;
-        font-size: 14px;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
+st.set_page_config(page_title="Data Sweeper", layout='wide')
+
+st.sidebar.title("User Input")
+user_name = st.sidebar.text_input("Enter Your Name")
+
+uploaded_files = st.sidebar.file_uploader(
+    "Upload your files (CSV or Excel):", 
+    type=["csv", "xlsx"], 
+    accept_multiple_files=True
 )
 
-# Session State for User Data
-if "users" not in st.session_state:
-    st.session_state.users = {}
+if user_name:
+    st.sidebar.success(f"Welcome, {user_name}!")
 
-# App Logo and Title
-col1, col2 = st.columns([1,1])
+st.title("Data Sweeper")
+st.write("Transform your files between CSV and Excel formats with built-in data cleaning and visualization.")
 
-# Center-Aligned Heading
-st.markdown("<h1 style='text-align: center; color: #2c3e50; margin-bottom: 10px;'>🚀 Growth Mindset Challenge</h1>", unsafe_allow_html=True)
+if uploaded_files:
+    st.subheader(f"Uploaded Files by {user_name}")
 
-# Center-Aligned Subheading
-st.markdown("<h2 style='text-align: center; color: #6a11cb;'>Master Programming, Transform Your Future! 💻</h2>", unsafe_allow_html=True)
+    for file in uploaded_files:
+        file_ext = os.path.splitext(file.name)[-1].lower()
 
-# Right-Aligned Heading on Next Line
-st.markdown("<h3 style='text-align: center; color: #2c3e50;'>💻 Welcome to the Programming Learning Adventure!</h3>", unsafe_allow_html=True)
+        # Read file with better handling
+        if file_ext == ".csv":
+            df = pd.read_csv(file)
+        elif file_ext == ".xlsx":
+            df = pd.read_excel(BytesIO(file.getvalue()), engine="openpyxl")  # Improved Handling
+        else:
+            st.error(f"Unsupported file type: {file_ext}")
+            continue
 
-# Centered Instruction
-st.markdown("<p style='text-align: center; font-size: 18px; color: #34495e;'>Enter your coder name in the sidebar to begin your journey!</p>", unsafe_allow_html=True)
+        if df.empty:
+            st.warning(f"{file.name} is empty! Please upload a valid file.")
+            continue
 
+        st.write(f"**File Name:** {file.name}")
+        st.write(f"**File Size:** {file.size / 1024:.2f} KB")
 
+        st.write("Preview:")
+        st.dataframe(df, height=300)
 
-# Sidebar - User Profile
-st.sidebar.markdown("<h2 style='color: #ffff;'>👤 Your Profile</h2>", unsafe_allow_html=True)
-name = st.sidebar.text_input("Enter Coder name")
-goal = st.sidebar.text_input("What's your biggest learning goal?")
-learning_style = st.sidebar.selectbox(
-    "How do you learn best?", ["Visual", "Reading/Writing", "Hands-on", "Listening"]
-)
-profile_pic = st.sidebar.file_uploader("Upload a profile picture", type=["jpg", "jpeg", "png"])
-bio = st.sidebar.text_area("Write a short bio about yourself")
-interests = st.sidebar.text_input("What are your interests? (e.g., coding, art, science)")
-email = st.sidebar.text_input("Your email (optional)")
+        st.subheader(f"Data Cleaning for {file.name}")
+        if st.checkbox(f"Clean Data for {file.name}"):
+            col1, col2 = st.columns(2)
 
-# Center & Right-Aligned Headings
+            with col1:
+                if st.button(f"Remove Duplicates from {file.name}"):
+                    df.drop_duplicates(inplace=True)
+                    st.write("Duplicates Removed ✅")
 
+            with col2:
+                if st.button(f"Fill Missing Values for {file.name}"):
+                    numeric_cols = df.select_dtypes(include=['number']).columns
+                    df[numeric_cols] = df[numeric_cols].fillna(df[numeric_cols].mean())
+                    st.write("Missing Values Filled ✅")
 
-if name:
-    if name not in st.session_state.users:
-        st.session_state.users[name] = {
-            "effort": 5,
-            "learning": 5,
-            "feedback": "",
-            "milestones": [],
-            "badges": [],
-            "mood": "😊",
-            "weekly_reflection": "",
-            "profile_pic": None,
-            "bio": "",
-            "interests": "",
-            "email": "",
-        }
+        st.subheader(f"Select Columns for {file.name}")
 
-    # Update user profile data
-    st.session_state.users[name]["profile_pic"] = profile_pic
-    st.session_state.users[name]["bio"] = bio
-    st.session_state.users[name]["interests"] = interests
-    st.session_state.users[name]["email"] = email
-    
-    # User Profile Card
-    st.markdown("<div class='profile-card'><h2 style='color: white;'>👤 Your Profile</h2>", unsafe_allow_html=True)
-    if st.session_state.users[name]["profile_pic"]:
-        st.image(st.session_state.users[name]["profile_pic"], width=100)
-    st.markdown(f"<h3 style='color: white;'>🌟 Welcome, {name}!</h3>", unsafe_allow_html=True)
-    st.markdown(f"<p style='color: white;'>Your Goal: <i>{goal}</i></p>", unsafe_allow_html=True)
-    st.markdown(f"<p style='color: white;'>Learning Style: <i>{learning_style}</i></p>", unsafe_allow_html=True)
-    st.markdown(f"<p style='color: white;'>Bio: <i>{bio}</i></p>", unsafe_allow_html=True)
-    st.markdown(f"<p style='color: white;'>Interests: <i>{interests}</i></p>", unsafe_allow_html=True)
-    st.markdown(f"<p style='color: white;'>Email: <i>{email}</i></p>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+        if not df.columns.empty:
+            selected_columns = st.multiselect(
+                f"Choose Columns", df.columns.tolist(), default=df.columns.tolist()
+            )
+            df = df[selected_columns]
+        else:
+            st.warning(f"The uploaded file {file.name} has no columns or is empty.")
+
+        st.subheader(f"Visualization for {file.name}")
+        if st.checkbox(f"Show Bar Chart for {file.name}"):
+            st.bar_chart(df.select_dtypes(include='number').iloc[:, :2])
+
+        st.subheader(f"Convert {file.name}")
+        conversion_type = st.radio(
+            f"Convert {file.name} to:", ["CSV", "Excel"], key=f"{file.name}_{user_name}"
+        )
+
+        if st.button(f"Convert {file.name}"):
+            buffer = BytesIO()
+            if conversion_type == "CSV":
+                df.to_csv(buffer, index=False)
+                file_name = file.name.replace(file_ext, ".csv")
+                mime_type = "text/csv"
+            elif conversion_type == "Excel":
+                df.to_excel(buffer, index=False, engine='openpyxl')
+                file_name = file.name.replace(file_ext, ".xlsx")
+                mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+            buffer.seek(0)
+
+            st.download_button(
+                label=f"Download {file.name} as {conversion_type}",
+                data=buffer,
+                file_name=file_name,
+                mime=mime_type
+            )
+
+st.success("All files have been processed successfully! 🚀")
